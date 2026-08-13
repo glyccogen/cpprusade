@@ -1,0 +1,22 @@
+BasedOnStyle: LLVM
+IndentWidth: 8
+ContinuationIndentWidth: 8
+ConstructorInitializerIndentWidth: 8
+TabWidth: 8
+UseTab: ForIndentation
+AccessModifierOffset: -4
+ColumnLimit: 100
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+DerivePointerAlignment: false
+PointerAlignment: Middle
+ReferenceAlignment: Middle
+KeepEmptyLinesAtTheStartOfBlocks: true
+SortIncludes: false
+QualifierAlignment: Right
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+        AfterControlStatements: false
+        AfterFunctionDeclarationName: false
+        AfterFunctionDefinitionName: false
