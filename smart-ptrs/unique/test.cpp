@@ -1,7 +1,7 @@
 #include "unique.h"
 
 #include "deleters.h"
-#include "../../.for_tests/common/my_int.h"
+#include "../../.for_tests/my_int.h"
 #include "../../.for_tests/catch.hpp"
 
 #include <cstdlib>

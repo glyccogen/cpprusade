@@ -1,2 +1,5 @@
 add_subdirectory(compressed-pair)
 add_subdirectory(unique)
+add_subdirectory(shared)
+add_subdirectory(weak)
+add_subdirectory(shared-from-this)
