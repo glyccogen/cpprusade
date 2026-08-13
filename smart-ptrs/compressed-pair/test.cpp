@@ -89,7 +89,7 @@ template <class V>
 inline constexpr bool is_compressed_v = std::is_empty_v<V> && !std::is_final_v<V>;  // NOLINT
 
 template <class U, class V>
-void CheckSize() {
+void checkSize() {
     if constexpr (is_compressed_v<U> && is_compressed_v<V>) {
         if constexpr (std::is_base_of_v<U, V> || std::is_base_of_v<V, U>) {
             static_assert(sizeof(CompressedPair<U, V>) == 2);
@@ -131,17 +131,17 @@ struct EmptyDerived2 : EmptyBase {};
 struct NonEmptyDerived : NonEmpty, EmptyBase {};
 
 TEST_CASE("Sizes") {
-    CheckSize<int, Empty>();
-    CheckSize<Empty, long double>();
-    CheckSize<std::string, EmptyButFinal>();
-    CheckSize<Empty, Empty>();
-    CheckSize<std::unique_ptr<std::string>, Empty>();
-    CheckSize<Empty, std::mutex>();
-    CheckSize<std::basic_string<int>, MyStatelessFunctor>();
-    CheckSize<Empty, Empty2>();
-    CheckSize<Empty2, Empty3>();
-    CheckSize<Empty, NonEmptyDescendant>();
-    CheckSize<EmptyUnion, int>();
+    checkSize<int, Empty>();
+    checkSize<Empty, long double>();
+    checkSize<std::string, EmptyButFinal>();
+    checkSize<Empty, Empty>();
+    checkSize<std::unique_ptr<std::string>, Empty>();
+    checkSize<Empty, std::mutex>();
+    checkSize<std::basic_string<int>, MyStatelessFunctor>();
+    checkSize<Empty, Empty2>();
+    checkSize<Empty2, Empty3>();
+    checkSize<Empty, NonEmptyDescendant>();
+    checkSize<EmptyUnion, int>();
     static_assert(std::is_empty_v<CompressedPair<Empty4, Empty5>>);
     static_assert(
         sizeof(CompressedPair<CompressedPair<Empty4, Empty5>, CompressedPair<Empty6, char>>) ==
