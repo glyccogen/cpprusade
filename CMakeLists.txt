@@ -15,3 +15,4 @@ file(CREATE_LINK
 )
 
 add_subdirectory(smart-ptrs)
+add_subdirectory(deque)
