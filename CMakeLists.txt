@@ -14,6 +14,6 @@ file(CREATE_LINK
         SYMBOLIC
 )
 
-add_subdirectory(smart-ptrs)
-add_subdirectory(deque)
-add_subdirectory(base-n)
+add_subdirectory(smart-ptrs cmake/smart-ptrs)
+add_subdirectory(deque cmake/deque)
+add_subdirectory(base-n cmake/base-n)
