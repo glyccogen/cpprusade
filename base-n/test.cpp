@@ -104,7 +104,7 @@ TEST_CASE("Binary data") {
 
 TEST_CASE("Padding") {
 	REQUIRE(encodeBaseN("sure.", Base::Base32) == "ON2XEZJO");
-	REQUIRE(encodeBaseN("sure", Base::Base32) == "ON2XEZJQ");
+	REQUIRE(encodeBaseN("sure", Base::Base32) == "ON2XEZI=");
 	REQUIRE(encodeBaseN("sur", Base::Base32) == "ON2XE===");
 	REQUIRE(encodeBaseN("su", Base::Base32) == "ON2Q====");
 	REQUIRE(encodeBaseN("s", Base::Base32) == "OM======");
