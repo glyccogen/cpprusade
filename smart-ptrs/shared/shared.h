@@ -7,42 +7,59 @@
 #include <utility>
 
 struct ControlBlockBase {
-	ControlBlockBase() : cnt_{1} {};
-	size_t cnt_;
+	ControlBlockBase() : strong_{1}, weak_{1} {};
+	size_t strong_;
+	size_t weak_;
 	virtual ~ControlBlockBase() = default;
+	virtual void destroy_obj() = 0;
 };
 
 template <typename U> struct ControlBlockWithObj : ControlBlockBase {
-	U data_;
-	template <typename... Args>
-	ControlBlockWithObj(Args &&... args) : data_{std::forward<Args>(args)...} {}
+	alignas(U) std::byte buf[sizeof(U)];
+
+	U * ptr() {
+		return reinterpret_cast<U *>(buf);
+	}
+
+	template <typename... Args> ControlBlockWithObj(Args &&... args) {
+		new (buf) U(std::forward<Args>(args)...);
+	}
 
 	~ControlBlockWithObj() override = default;
+	void destroy_obj() override {
+		ptr()->~U();
+	}
 };
 
 template <typename U> struct ControlBlockWithPtr : ControlBlockBase {
 	U * ptr_;
 	ControlBlockWithPtr(U * ptr) : ptr_{ptr} {};
 
-	~ControlBlockWithPtr() override {
+	~ControlBlockWithPtr() override = default;
+
+	void destroy_obj() override {
 		delete ptr_;
-	}
+		ptr_ = nullptr;
+	};
 };
 
 // https://en.cppreference.com/w/cpp/memory/shared_ptr
 template <typename T> class SharedPtr {
 	ControlBlockBase * cb_;
 	T * ptr_;
-	void inc_cnt() {
+	void inc_strong() {
 		if(cb_) {
-			++cb_->cnt_;
+			++cb_->strong_;
+			if(cb_->strong_ == 1) {
+				++cb_->weak_;
+			}
 		}
 	}
 	template <typename V> void copy_from(SharedPtr<V> const & other) {
 		reset();
 		cb_ = other.cb_;
 		ptr_ = other.ptr_;
-		inc_cnt();
+		inc_strong();
 	}
 
 	template <typename V> void move_from(SharedPtr<V> && other) {
@@ -55,9 +72,16 @@ template <typename T> class SharedPtr {
 
 	template <typename U> friend class SharedPtr;
 
-	template <typename U, typename... Args> friend SharedPtr<U> makeShared(Args &&... args);
+	template <typename U> friend class WeakPtr;
 
-	SharedPtr(ControlBlockBase * cb, T * ptr) : cb_{cb}, ptr_{ptr} {}
+	template <typename U, typename... Args> friend SharedPtr<U> makeShared(Args &&... args);
+	// FIXME
+
+	SharedPtr(ControlBlockBase * cb, T * ptr) : cb_{cb}, ptr_{ptr} {
+		if(!cb_ || !cb_->strong_) {
+			ptr_ = nullptr;
+		}
+	}
 
     public:
 	////////////////////////////////////////////////////////////////////////////////////////////////
@@ -71,7 +95,7 @@ template <typename T> class SharedPtr {
 	        : cb_{new ControlBlockWithPtr<U>{ptr}}, ptr_{ptr} {}
 
 	SharedPtr(SharedPtr const & other) : cb_{other.cb_}, ptr_{other.get()} {
-		inc_cnt();
+		inc_strong();
 	}
 	SharedPtr(SharedPtr && other) : cb_{other.cb_}, ptr_{other.get()} {
 		other.cb_ = nullptr;
@@ -82,7 +106,7 @@ template <typename T> class SharedPtr {
 	SharedPtr(SharedPtr<V> const & other)
 	        requires(std::is_convertible_v<V *, T *>)
 	        : cb_{other.cb_}, ptr_{other.ptr_} {
-		inc_cnt();
+		inc_strong();
 	}
 
 	template <typename V>
@@ -97,11 +121,18 @@ template <typename T> class SharedPtr {
 	// #8 from https://en.cppreference.com/w/cpp/memory/shared_ptr/shared_ptr
 	template <typename Y>
 	SharedPtr(SharedPtr<Y> const & other, T * ptr) : cb_{other.cb_}, ptr_{ptr} {
-		inc_cnt();
+		inc_strong();
 	}
 	// Promote `WeakPtr`
 	// #11 from https://en.cppreference.com/w/cpp/memory/shared_ptr/shared_ptr
-	explicit SharedPtr(WeakPtr<T> const & other);
+	explicit SharedPtr(WeakPtr<T> const & other) : SharedPtr() {
+		cb_ = other.cb_;
+		ptr_ = other.ptr_;
+		if(!cb_ || !cb_->strong_) {
+			throw BadWeakPtr();
+		}
+		inc_strong();
+	};
 
 	////////////////////////////////////////////////////////////////////////////////////////////////
 	// `operator=`-s
@@ -146,15 +177,18 @@ template <typename T> class SharedPtr {
 	// Modifiers
 
 	void reset() {
-		if(this->cb_) {
-			--cb_->cnt_;
-			if(cb_->cnt_ == 0) {
-				delete cb_;
+		if(cb_) {
+			if(--cb_->strong_ == 0) {
+				cb_->destroy_obj();
+				if(--cb_->weak_ == 0) {
+					delete cb_;
+				}
 			}
 		}
 		cb_ = nullptr;
 		ptr_ = nullptr;
 	}
+
 	template <typename U>
 	void reset(U * ptr)
 	        requires(std::is_convertible_v<U *, T *>)
@@ -186,7 +220,7 @@ template <typename T> class SharedPtr {
 		if(!cb_) {
 			return 0;
 		}
-		return cb_->cnt_;
+		return cb_->strong_;
 	}
 	explicit operator bool() const {
 		return ptr_;
@@ -201,11 +235,12 @@ inline bool operator==(SharedPtr<T> const & left, SharedPtr<U> const & right) {
 // Allocate memory only once
 template <typename U, typename... Args> SharedPtr<U> makeShared(Args &&... args) {
 	auto * cb = new ControlBlockWithObj<U>{std::forward<Args>(args)...};
-	auto ptr = &cb->data_;
+	auto ptr = cb->ptr();
 	return SharedPtr<U>{cb, ptr};
 }
 
 // Look for usage examples in tests
+// FIXME
 template <typename T> class EnableSharedFromThis {
     public:
 	SharedPtr<T> shared_from_this();
